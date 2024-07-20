@@ -9,24 +9,27 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
+import os
+from datetime import timedelta
 
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_(*a0br9r&10isz#f@ulew*u$hyz+m!!_p2-u9ggj87dwhll_6'
+SECRET_KEY = os.getenv('SECRET_KEY_DJANGO')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG')
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -37,6 +40,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'drf_yasg',
+    'drf_spectacular',
+    'corsheaders',
+    'rest_framework',
+    'django_filters',
+    'rest_framework_simplejwt',
+    'django_celery_beat',
+
+    'userapp',
+    'mainapp',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -69,17 +84,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DATABASES_DEFAULT_ENGINE'),
+        'NAME': os.getenv('DATABASES_DEFAULT_NAME'),
+        'USER': os.getenv('DATABASES_DEFAULT_USER'),
+        'PASSWORD': os.getenv('DATABASES_DEFAULT_PASSWORD'),
+        'HOST': os.getenv('DATABASES_DEFAULT_HOST'),
+        'PORT': os.getenv('DATABASES_DEFAULT_PORT'),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -99,11 +116,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
 
 TIME_ZONE = 'UTC'
 
@@ -111,13 +127,78 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = (
+    BASE_DIR / 'static',
+)
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'userapp.User'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_SCHEMA_CLASS':
+        'drf_spectacular.openapi.AutoSchema'
+    ,
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'UPDATE_LAST_LOGIN': True,
+}
+
+CORS_ALLOWED_ORIGINS = [
+    # "http://127.0.0.1:8000/",
+    "https://example.com",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:8000/",
+]
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Your Project API',
+    'DESCRIPTION': 'Your project description',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # OTHER SETTINGS
+}
+
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    'redis_clear_and_get': {
+        'task': 'mainapp.tasks.redis_clear_and_get',
+        'schedule': timedelta(hours=2),
+    },
+    'send_notice_habit_telegram': {
+        'task': 'mainapp.tasks.send_notice_habit_telegram',
+        'schedule': timedelta(seconds=60),
+    },
+}
+
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 60 * 60 * 4 + 10
+
+TELEGRAM_API = os.getenv('TELEGRAM_API')
+TELEGRAM_URL = os.getenv('TELEGRAM_URL')
+
